@@ -45,7 +45,15 @@ app.use(
   })
 );
 
-app.use(express.json());
+app.use(express.json({ limit: '1mb' }));
+
+// Malformed JSON (often from bad curl/PowerShell tests) — not a server bug
+app.use((err, req, res, next) => {
+  if (err.type === 'entity.parse.failed' || (err instanceof SyntaxError && err.status === 400)) {
+    return res.status(400).json({ message: 'Invalid JSON in request body' });
+  }
+  next(err);
+});
 
 // Health checks must respond before MongoDB finishes connecting (Railway healthcheck)
 app.get('/api/health', (req, res) => {

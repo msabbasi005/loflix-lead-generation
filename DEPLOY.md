@@ -1,149 +1,117 @@
-# Deploy LeadFlow Live (for your client)
+# Deploy LeadFlow Live
 
-Use **MongoDB Atlas** + **Render** (API) + **Vercel** (website).
+**Stack:** MongoDB Atlas + **Railway** (API) + **Vercel** (website)
 
-Estimated time: **30–45 minutes**.
-
----
-
-## Part A — Push code to GitHub
-
-1. Create a repo on [github.com](https://github.com) (e.g. `leadflow`).
-2. In PowerShell, from the project folder:
-
-```powershell
-cd c:\Users\DELL\Desktop\loflix
-git init
-git add .
-git commit -m "Initial commit - LeadFlow"
-git branch -M main
-git remote add origin https://github.com/YOUR_USERNAME/YOUR_REPO.git
-git push -u origin main
-```
-
-Replace `YOUR_USERNAME` and `YOUR_REPO` with your GitHub details.
+Your repo: `https://github.com/BasitAli618/lofix_lead_generation`
 
 ---
 
-## Part B — MongoDB Atlas (cloud database)
+## 1. MongoDB Atlas (already done)
 
-1. Go to [mongodb.com/atlas](https://www.mongodb.com/cloud/atlas/register) → sign up (free).
-2. Create a **free cluster** (M0).
-3. **Database Access** → Add user → username + password → save password somewhere safe.
-4. **Network Access** → **Add IP Address** → **Allow Access from Anywhere** (`0.0.0.0/0`) — needed for Render.
-5. **Database** → **Connect** → **Drivers** → copy connection string.  
-   Example: `mongodb+srv://user:PASSWORD@cluster0.xxxxx.mongodb.net/leadgen?retryWrites=true&w=majority`
-6. Replace `<password>` with your real password (URL-encode special characters if needed).
-
-Keep this URI — you will use it as `MONGO_URI` on Render.
+- Use your **standard** `mongodb://` URI in env vars (not `mongodb+srv` if you get `querySrv ECONNREFUSED`).
+- **Network Access** → Allow `0.0.0.0/0` so Railway can connect.
+- Seed from your PC: `cd server` → `npm run seed`
 
 ---
 
-## Part C — Render (backend API)
+## 2. Railway (backend API)
 
-1. Go to [render.com](https://render.com) → sign up → connect GitHub.
-2. **New +** → **Web Service** → select your repo.
-3. Settings:
+### Sign up & deploy
 
-| Setting | Value |
-|--------|--------|
-| **Name** | `leadflow-api` (or any name) |
-| **Root Directory** | `server` |
-| **Runtime** | Node |
-| **Build Command** | `npm install` |
-| **Start Command** | `npm start` |
+1. Go to [railway.app](https://railway.app) → **Login with GitHub**.
+2. **New Project** → **Deploy from GitHub repo**.
+3. Select **`lofix_lead_generation`**.
+4. Click the new service → **Settings**:
+   - **Root Directory:** `server` ← important
+   - **Start Command:** `npm start` (default is fine)
+5. **Variables** tab → add:
 
-4. **Environment Variables** (add each):
-
-| Key | Value |
-|-----|--------|
-| `MONGO_URI` | Your Atlas connection string |
-| `JWT_SECRET` | Long random string (e.g. 32+ characters) |
-| `CLIENT_URL` | Leave empty for now — fill after Vercel deploy |
-| `ADMIN_EMAIL` | `admin@example.com` (or your email) |
-| `ADMIN_PASSWORD` | Strong password for admin login |
+| Variable | Value |
+|----------|--------|
+| `MONGO_URI` | Your full Atlas `mongodb://...` connection string |
+| `JWT_SECRET` | Long random string (32+ chars) |
+| `CLIENT_URL` | Leave empty until Vercel is live, then your Vercel URL |
+| `ADMIN_EMAIL` | `admin@example.com` |
+| `ADMIN_PASSWORD` | Your admin password |
 | `NODE_ENV` | `production` |
 
-5. Click **Create Web Service** → wait until **Live**.
-6. Copy your API URL, e.g. `https://leadflow-api.onrender.com`
+> Railway sets `PORT` automatically — do not hardcode it.
 
-### Seed production database (once)
+6. **Settings** → **Networking** → **Generate Domain**  
+   Copy the URL, e.g. `https://lofix-lead-generation-production.up.railway.app`
 
-**Option 1 — From your PC** (easiest):
+7. Wait until deploy shows **Active / Success**.
 
-Temporarily set in a terminal:
+### Test API
+
+Open in browser:
+
+```text
+https://YOUR-RAILWAY-URL.up.railway.app/api/health
+```
+
+You should see: `{"status":"ok"}`
+
+### Seed (if Atlas is empty)
+
+From your PC (same `MONGO_URI` as Railway):
 
 ```powershell
 cd c:\Users\DELL\Desktop\loflix\server
-$env:MONGO_URI="your-atlas-connection-string-here"
-$env:ADMIN_EMAIL="admin@example.com"
-$env:ADMIN_PASSWORD="your-chosen-password"
 npm run seed
 ```
 
-**Option 2 — Render Shell:** Dashboard → your service → **Shell** → run `npm run seed`
-
 ---
 
-## Part D — Vercel (website)
+## 3. Vercel (frontend)
 
-1. Go to [vercel.com](https://vercel.com) → sign up → connect GitHub.
-2. **Add New Project** → import the same repo.
-3. Settings:
+1. [vercel.com](https://vercel.com) → Import GitHub repo **`lofix_lead_generation`**.
+2. Settings:
 
 | Setting | Value |
-|--------|--------|
-| **Framework Preset** | Vite |
+|---------|--------|
 | **Root Directory** | `client` |
-| **Build Command** | `npm run build` (default) |
-| **Output Directory** | `dist` (default) |
+| **Framework** | Vite |
 
-4. **Environment Variables:**
+3. **Environment variable:**
 
 | Key | Value |
 |-----|--------|
-| `VITE_API_URL` | `https://YOUR-RENDER-URL.onrender.com/api` |
+| `VITE_API_URL` | `https://YOUR-RAILWAY-URL.up.railway.app/api` |
 
-Example: `https://leadflow-api.onrender.com/api`
-
-5. Click **Deploy** → wait for success.
-6. Copy your site URL, e.g. `https://leadflow.vercel.app`
+4. Deploy → copy site URL, e.g. `https://lofix-lead-generation.vercel.app`
 
 ---
 
-## Part E — Connect frontend and backend
+## 4. Link frontend ↔ backend
 
-1. Go back to **Render** → your API service → **Environment**.
-2. Set `CLIENT_URL` to your Vercel URL (no trailing slash):  
-   `https://leadflow.vercel.app`
-3. **Save** → Render will redeploy automatically.
+1. Railway → **Variables** → set `CLIENT_URL` to your **Vercel URL** (no trailing slash).
+2. Railway redeploys automatically.
+3. Open Vercel URL → test site, forms, and `/admin/login`.
 
 ---
 
-## Part F — Test for your client
+## Railway pricing (short)
 
-1. Open your **Vercel URL** — home page should load with content.
-2. Submit a lead on **Contact** → check **Admin → Leads** on live site.
-3. Log in at `https://your-site.vercel.app/admin/login` with `ADMIN_EMAIL` / `ADMIN_PASSWORD`.
-4. Edit pricing or services → refresh public page → changes should appear.
-
-**Share with client:** only the Vercel URL (the website). They do not need Render or Atlas links.
+- New accounts often get **trial credit** (e.g. $5).
+- Small Node APIs usually cost a few dollars/month after trial if always on.
+- Check [railway.app/pricing](https://railway.app/pricing) for current plans.
+- You can set a **usage limit** in Railway billing to avoid surprises.
 
 ---
 
 ## Troubleshooting
 
-| Problem | Fix |
-|--------|-----|
-| Blank data / API errors | Check `VITE_API_URL` on Vercel ends with `/api` |
-| CORS error in browser console | Set `CLIENT_URL` on Render to exact Vercel URL, redeploy |
-| Admin login fails | Re-run `npm run seed` with Atlas `MONGO_URI` and same admin password |
-| First load very slow | Render free tier sleeps after ~15 min idle — wait ~30s, refresh |
-| 404 on `/admin` routes | `client/vercel.json` must be deployed (included in repo) |
+| Issue | Fix |
+|-------|-----|
+| Build fails | Root Directory must be `server` |
+| API 502 / crash | Check Railway **Deploy Logs**; verify `MONGO_URI` |
+| CORS error | Set `CLIENT_URL` to exact Vercel URL |
+| Empty site data | Run `npm run seed` with Atlas URI |
+| `querySrv ECONNREFUSED` | Use standard `mongodb://` URI, not `mongodb+srv` |
 
 ---
 
-## Custom domain (optional)
+## Share with client
 
-- **Vercel:** Project → Settings → Domains → add `www.yourclient.com`
-- Update Render `CLIENT_URL` to that domain after DNS is connected.
+Send only the **Vercel** website URL.
