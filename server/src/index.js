@@ -10,15 +10,17 @@ const contentRoutes = require('./routes/content');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+const normalizeOrigin = (url) => (url ? url.replace(/\/$/, '') : url);
+
 const allowedOrigins = [
-  process.env.CLIENT_URL,
+  normalizeOrigin(process.env.CLIENT_URL),
   'http://localhost:5173',
   'http://127.0.0.1:5173',
 ].filter(Boolean);
 
 const isAllowedOrigin = (origin) => {
   if (!origin) return true;
-  if (allowedOrigins.includes(origin)) return true;
+  if (allowedOrigins.includes(normalizeOrigin(origin))) return true;
   try {
     const { hostname } = new URL(origin);
     if (hostname.endsWith('.vercel.app')) return true;
