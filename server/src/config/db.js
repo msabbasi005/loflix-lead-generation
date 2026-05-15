@@ -1,27 +1,48 @@
 const mongoose = require('mongoose');
 
+const getUri = () => {
+  const raw = process.env.MONGO_URI;
+  if (!raw) return null;
+  // Strip accidental quotes from Railway copy-paste
+  return raw.trim().replace(/^["']|["']$/g, '');
+};
+
+const connectOptions = {
+  serverSelectionTimeoutMS: 30000,
+  connectTimeoutMS: 30000,
+  maxPoolSize: 10,
+};
+
+let connectPromise = null;
+
 const connectDB = async () => {
-  const uri = process.env.MONGO_URI;
+  const uri = getUri();
   if (!uri) {
     console.error('MONGO_URI is not set — add it in Railway Variables');
-    return;
+    return false;
   }
 
-  try {
-    await mongoose.connect(uri);
-    console.log('MongoDB connected');
-  } catch (err) {
-    console.error('MongoDB connection failed:', err.message);
-    // Retry once after 5s (Railway / Atlas cold start)
-    setTimeout(async () => {
-      try {
-        await mongoose.connect(uri);
-        console.log('MongoDB connected (retry)');
-      } catch (retryErr) {
-        console.error('MongoDB retry failed:', retryErr.message);
+  if (mongoose.connection.readyState === 1) return true;
+
+  if (connectPromise) return connectPromise;
+
+  connectPromise = (async () => {
+    try {
+      if (mongoose.connection.readyState !== 0) {
+        await mongoose.disconnect();
       }
-    }, 5000);
-  }
+      await mongoose.connect(uri, connectOptions);
+      console.log('MongoDB connected');
+      return true;
+    } catch (err) {
+      console.error('MongoDB connection failed:', err.message);
+      return false;
+    } finally {
+      connectPromise = null;
+    }
+  })();
+
+  return connectPromise;
 };
 
 module.exports = connectDB;

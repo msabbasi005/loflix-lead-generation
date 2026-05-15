@@ -55,11 +55,19 @@ app.use((err, req, res, next) => {
   next(err);
 });
 
-// Health checks must respond before MongoDB finishes connecting (Railway healthcheck)
-app.get('/api/health', (req, res) => {
+// Health check — tries to connect if DB dropped (Railway / Atlas)
+app.get('/api/health', async (req, res) => {
+  if (mongoose.connection.readyState !== 1) {
+    await connectDB();
+  }
   const dbState = mongoose.connection.readyState;
-  const dbStatus = dbState === 1 ? 'connected' : dbState === 2 ? 'connecting' : 'disconnected';
-  res.status(200).json({ status: 'ok', db: dbStatus });
+  const dbStatus =
+    dbState === 1 ? 'connected' : dbState === 2 ? 'connecting' : 'disconnected';
+  res.status(200).json({
+    status: 'ok',
+    db: dbStatus,
+    mongoConfigured: Boolean(process.env.MONGO_URI),
+  });
 });
 
 app.get('/', (req, res) => res.status(200).json({ status: 'ok' }));
@@ -83,7 +91,6 @@ app.use((err, req, res, next) => {
 // Listen first so platform healthchecks pass; connect MongoDB in background
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`);
-  connectDB().catch((err) => {
-    console.error('MongoDB connection failed:', err.message);
-  });
+  console.log('MONGO_URI set:', Boolean(process.env.MONGO_URI));
+  connectDB();
 });
